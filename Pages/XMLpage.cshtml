@@ -1,0 +1,20 @@
+﻿@page "/XMLpage"
+@model XMLpageModel
+@{
+    ViewData["Title"] = "RSS page";
+}
+
+
+<div class="d-flex flex-wrap">
+    @foreach (var item in Model.Items)
+    {
+        <div class="card text-bg-light m-3" style="width: 25rem;">
+            <div class="card-body">
+                <h4 class="card-title">@item.Title</h4>
+                <p class="fw-light" style="color: #717070c9">@item.PubDate</p>
+                <p class="card-text">@Html.Raw(item.Description)</p>
+                <a href="@item.Link" target="_blank" class="btn btn-primary">Link</a>
+            </div>
+        </div>
+    }
+</div>

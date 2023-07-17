@@ -9,7 +9,7 @@ public class IndexModel : PageModel
 {
     private readonly IHttpClientFactory _httpClientFactory;
     public List<FeedItem> outlines { get; set; } = new List<FeedItem>();
-    public int PageSize { get; set; } = 10;
+    public int PageSize { get; set; } = 12;
     public IndexModel(IHttpClientFactory httpClientFactory)
     {
         _httpClientFactory = httpClientFactory;
@@ -49,10 +49,10 @@ public class IndexModel : PageModel
         int id = 0;
 
         List<FeedItem> DeseralizedFavFeeds = null;
-        var favFeedsJson = Request.Cookies["favFeeds"];
+        //var favFeedsJson = Request.Cookies["favFeeds"];
 
         // Check if the "FavFeeds" cookie exists and is not empty
-        if (string.IsNullOrEmpty(favFeedsJson))
+        if (Request.Cookies.TryGetValue("favFeeds", out var favFeedsJson) && !string.IsNullOrEmpty(favFeedsJson))
         {
             // Deserialize the JSON string to a List<FeedItem>
             DeseralizedFavFeeds = JsonSerializer.Deserialize<List<FeedItem>>(favFeedsJson);
@@ -70,11 +70,12 @@ public class IndexModel : PageModel
                 XmlLink = link
             };
 
-            if (DeseralizedFavFeeds != null)
+            var favFeed = DeseralizedFavFeeds.FirstOrDefault(x => x.XmlLink == link); //could cause a problem
+            if (favFeed != null)
             {
-                var favFeed = DeseralizedFavFeeds.FirstOrDefault(x => x.ID == newItem.ID); //could cause a problem
-                favFeed.IsFavorite = true;
+                newItem.IsFavorite = true;
             }
+
             outlines.Add(newItem);
         }
 

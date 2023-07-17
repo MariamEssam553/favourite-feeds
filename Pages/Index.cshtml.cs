@@ -52,7 +52,7 @@ public class IndexModel : PageModel
         var favFeedsJson = Request.Cookies["favFeeds"];
 
         // Check if the "FavFeeds" cookie exists and is not empty
-        if (!string.IsNullOrEmpty(favFeedsJson))
+        if (string.IsNullOrEmpty(favFeedsJson))
         {
             // Deserialize the JSON string to a List<FeedItem>
             DeseralizedFavFeeds = JsonSerializer.Deserialize<List<FeedItem>>(favFeedsJson);
@@ -70,7 +70,7 @@ public class IndexModel : PageModel
                 XmlLink = link
             };
 
-            if (!(DeseralizedFavFeeds == null))
+            if (DeseralizedFavFeeds != null)
             {
                 var favFeed = DeseralizedFavFeeds.FirstOrDefault(x => x.ID == newItem.ID); //could cause a problem
                 favFeed.IsFavorite = true;

@@ -78,7 +78,7 @@ public class IndexModel : PageModel
     }
 
 
-    public async Task<IActionResult> OnGetAsync([FromQuery] int page = 1)
+    public async Task<IActionResult> OnGetAsync(int page = 1)
     {
         Outlines = await GetOutlinesAsync();
 
@@ -97,7 +97,6 @@ public class IndexModel : PageModel
     {
         Outlines = await GetOutlinesAsync();
         var btnID = int.Parse(Request.Form["btnID"]);
-        //Console.WriteLine("feed pressed ID = " + btnID);
         var favoriteFeedsCookie = JsonSerializer.Deserialize<List<FeedItem>>(Request.Cookies["favFeeds"]);
         var feedChosen = favoriteFeedsCookie.FirstOrDefault(x => x.ID == btnID);
         if (feedChosen != null)
@@ -114,10 +113,10 @@ public class IndexModel : PageModel
         }
 
         var serializedFavFeeds = JsonSerializer.Serialize(favoriteFeedsCookie);
-
         Response.Cookies.Append("favFeeds", serializedFavFeeds);
-
         return RedirectToPage();
+
+
     }
 }
 

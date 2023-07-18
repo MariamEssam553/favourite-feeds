@@ -10,13 +10,14 @@ public class IndexModel : PageModel
     private readonly IHttpClientFactory _httpClientFactory;
     public List<FeedItem> Outlines { get; set; } = new List<FeedItem>();
     public List<FeedItem> ItemsForPage { get; set; } = new List<FeedItem>();
-    public int PageSize { get; set; } = 12;
+    public int pageSize { get; set; } = 12;
+
     public IndexModel(IHttpClientFactory httpClientFactory)
     {
         _httpClientFactory = httpClientFactory;
     }
 
-    private async Task<List<FeedItem>> GetOutlinesAsync(int page)
+    private async Task<List<FeedItem>> GetOutlinesAsync()
     {
         var client = _httpClientFactory.CreateClient();
         var response = await client.GetAsync("https://blue.feedland.org/opml?screenname=dave");
@@ -76,18 +77,15 @@ public class IndexModel : PageModel
         return Outlines;
     }
 
-    public async Task<IActionResult> OnGetAsync(int page = 1)
+
+    public async Task<IActionResult> OnGetAsync([FromQuery] int page = 1)
     {
-        Outlines = await GetOutlinesAsync(page);
+        Outlines = await GetOutlinesAsync();
 
-        int totalPages = (int)Math.Ceiling((double)Outlines.Count / PageSize);
-        page = Math.Max(1, Math.Min(page, totalPages));
-
-        // Get the items for the current page
-        int startIndex = (page - 1) * PageSize;
-        int endIndex = startIndex + PageSize;
+        int totalPages = (int)Math.Ceiling((double)Outlines.Count / pageSize);
+        int startIndex = (page - 1) * pageSize;
+        int endIndex = startIndex + pageSize;
         ItemsForPage = Outlines.Skip(startIndex).Take(endIndex - startIndex).ToList();
-
 
         ViewData["CurrentPage"] = page;
         ViewData["TotalPages"] = totalPages;
@@ -95,9 +93,9 @@ public class IndexModel : PageModel
         return Page();
     }
 
-    public async Task<IActionResult> OnPostToggleFavorite(int page)
+    public async Task<IActionResult> OnPostToggleFavorite()
     {
-        Outlines = await GetOutlinesAsync(page);
+        Outlines = await GetOutlinesAsync();
         var btnID = int.Parse(Request.Form["btnID"]);
         //Console.WriteLine("feed pressed ID = " + btnID);
         var favoriteFeedsCookie = JsonSerializer.Deserialize<List<FeedItem>>(Request.Cookies["favFeeds"]);

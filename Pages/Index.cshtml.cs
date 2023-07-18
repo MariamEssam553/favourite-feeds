@@ -17,7 +17,7 @@ public class IndexModel : PageModel
         _httpClientFactory = httpClientFactory;
     }
 
-    private async Task<List<FeedItem>> GetOutlinesAsync()
+    public async Task<List<FeedItem>> GetOutlinesAsync()
     {
         var client = _httpClientFactory.CreateClient();
         var response = await client.GetAsync("https://blue.feedland.org/opml?screenname=dave");
@@ -36,11 +36,6 @@ public class IndexModel : PageModel
         string OPMLcontent = await response.Content.ReadAsStringAsync();
         opmlDocument.LoadXml(OPMLcontent);
         var nodes = opmlDocument.SelectNodes("opml/body/outline");
-
-        //var nodesCount = nodes.Count;
-        //var startIndex = (page - 1) * PageSize;
-        //var endIndex = startIndex + PageSize;
-        //var itemsForPage = nodes.Cast<XmlNode>().Skip(startIndex).Take(PageSize);
 
         int id = 0;
 
@@ -115,8 +110,6 @@ public class IndexModel : PageModel
         var serializedFavFeeds = JsonSerializer.Serialize(favoriteFeedsCookie);
         Response.Cookies.Append("favFeeds", serializedFavFeeds);
         return RedirectToPage();
-
-
     }
 }
 

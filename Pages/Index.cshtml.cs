@@ -8,21 +8,19 @@ namespace HW5.Pages;
 public class IndexModel : PageModel
 {
     private readonly IHttpClientFactory _httpClientFactory;
-    public List<FeedItem> outlines { get; set; } = new List<FeedItem>();
+    public List<FeedItem> Outlines { get; set; } = new List<FeedItem>();
+    public List<FeedItem> ItemsForPage { get; set; } = new List<FeedItem>();
     public int PageSize { get; set; } = 12;
     public IndexModel(IHttpClientFactory httpClientFactory)
     {
         _httpClientFactory = httpClientFactory;
     }
 
-    public async Task<IActionResult> OnGetAsync([FromQuery] int page = 1)
+    private async Task<List<FeedItem>> GetOutlinesAsync(int page)
     {
         var client = _httpClientFactory.CreateClient();
         var response = await client.GetAsync("https://blue.feedland.org/opml?screenname=dave");
         XmlDocument opmlDocument = new XmlDocument();
-
-        //XmlElement? root = opmlDocument.DocumentElement;
-        //XmlNodeList nodes = root.GetElementsByTagName("outline");
 
         if (!Request.Cookies.ContainsKey("favFeeds"))
         {
@@ -30,35 +28,30 @@ public class IndexModel : PageModel
             Response.Cookies.Append("favFeeds", serializedFavFeeds, new CookieOptions
             {
                 Path = "/",
-                Expires = DateTimeOffset.Now.AddDays(1)
+                Expires = DateTimeOffset.Now.AddMinutes(10)
             });
-            //Request.Cookies["favFeeds"]
-            Console.WriteLine("favFeeds cookie created");
         }
 
         string OPMLcontent = await response.Content.ReadAsStringAsync();
         opmlDocument.LoadXml(OPMLcontent);
         var nodes = opmlDocument.SelectNodes("opml/body/outline");
 
-        var nodesCount = nodes.Count;
-        Console.WriteLine("nodes count = " + nodesCount);
-        var startIndex = (page - 1) * PageSize;
-        var endIndex = startIndex + PageSize;
-        var itemsForPage = nodes.Cast<XmlNode>().Skip(startIndex).Take(PageSize);
+        //var nodesCount = nodes.Count;
+        //var startIndex = (page - 1) * PageSize;
+        //var endIndex = startIndex + PageSize;
+        //var itemsForPage = nodes.Cast<XmlNode>().Skip(startIndex).Take(PageSize);
 
         int id = 0;
 
         List<FeedItem> DeseralizedFavFeeds = null;
-        //var favFeedsJson = Request.Cookies["favFeeds"];
+        var favFeedsJson = Request.Cookies["favFeeds"];
 
-        // Check if the "FavFeeds" cookie exists and is not empty
-        if (Request.Cookies.TryGetValue("favFeeds", out var favFeedsJson) && !string.IsNullOrEmpty(favFeedsJson))
+        if (favFeedsJson != "[]")
         {
-            // Deserialize the JSON string to a List<FeedItem>
             DeseralizedFavFeeds = JsonSerializer.Deserialize<List<FeedItem>>(favFeedsJson);
         }
 
-        foreach (XmlNode node in itemsForPage)
+        foreach (XmlNode node in nodes)
         {
             string Text = node.Attributes["text"].Value ?? "";
             string link = node.Attributes["xmlUrl"].Value ?? "";
@@ -70,32 +63,45 @@ public class IndexModel : PageModel
                 XmlLink = link
             };
 
-            var favFeed = DeseralizedFavFeeds.FirstOrDefault(x => x.XmlLink == link); //could cause a problem
-            if (favFeed != null)
+            if (favFeedsJson != "[]")
             {
-                newItem.IsFavorite = true;
+                string? favFeeds = DeseralizedFavFeeds.SingleOrDefault(x => x.XmlLink == link)?.ToString(); //could cause a problem
+                if (favFeeds != null)
+                {
+                    newItem.IsFavorite = true;
+                }
             }
-
-            outlines.Add(newItem);
+            Outlines.Add(newItem);
         }
+        return Outlines;
+    }
 
-        for (int i = 0; i < outlines.Count; i++)
-        {
-            Console.WriteLine("Item ID = " + outlines[i].ID + " Item status : " + outlines[i].IsFavorite);
-        }
+    public async Task<IActionResult> OnGetAsync(int page = 1)
+    {
+        Outlines = await GetOutlinesAsync(page);
+
+        int totalPages = (int)Math.Ceiling((double)Outlines.Count / PageSize);
+        page = Math.Max(1, Math.Min(page, totalPages));
+
+        // Get the items for the current page
+        int startIndex = (page - 1) * PageSize;
+        int endIndex = startIndex + PageSize;
+        ItemsForPage = Outlines.Skip(startIndex).Take(endIndex - startIndex).ToList();
+
 
         ViewData["CurrentPage"] = page;
-        ViewData["TotalPages"] = (int)Math.Ceiling((double)nodesCount / PageSize);
+        ViewData["TotalPages"] = totalPages;
 
         return Page();
     }
 
-    public async Task<IActionResult> OnPostToggleFavorite(string link, string title, int page)
+    public async Task<IActionResult> OnPostToggleFavorite(int page)
     {
-        //var btnID = int.Parse(Request.Form["btnID"]);
+        Outlines = await GetOutlinesAsync(page);
+        var btnID = int.Parse(Request.Form["btnID"]);
         //Console.WriteLine("feed pressed ID = " + btnID);
         var favoriteFeedsCookie = JsonSerializer.Deserialize<List<FeedItem>>(Request.Cookies["favFeeds"]);
-        var feedChosen = favoriteFeedsCookie.FirstOrDefault(x => x.XmlLink == link);
+        var feedChosen = favoriteFeedsCookie.FirstOrDefault(x => x.ID == btnID);
         if (feedChosen != null)
         {
             favoriteFeedsCookie.Remove(feedChosen);
@@ -103,7 +109,9 @@ public class IndexModel : PageModel
         }
         else
         {
-            feedChosen = new FeedItem { XmlLink = link, Text = title, IsFavorite = true };
+            feedChosen = Outlines.FirstOrDefault(x => x.ID == btnID);
+            //feedChosen = new FeedItem { XmlLink = link, Text = title, IsFavorite = true };
+            feedChosen.IsFavorite = true;
             favoriteFeedsCookie.Add(feedChosen);
         }
 
@@ -113,56 +121,6 @@ public class IndexModel : PageModel
 
         return RedirectToPage();
     }
-
-    //    public void UpdateCookies(int itemID)
-    //    {
-    //        Console.WriteLine("Inside UpdateCookies");
-    //        var favFeedsCookie = Request.Cookies["favFeeds"];
-
-    //        var favs = new List<int>();
-
-    //        if (!string.IsNullOrEmpty(favFeedsCookie))
-    //        {
-    //            favs = JsonSerializer.Deserialize<List<int>>(favFeedsCookie);
-    //        }
-
-    //        if (!favs.Contains(itemID))
-    //        {
-    //            favs.Add(itemID);
-    //        }
-    //        else
-    //        {
-    //            favs.Remove(itemID);
-    //        }
-
-    //        Response.Cookies.Append("favFeeds", JsonSerializer.Serialize(favs),
-    //            new CookieOptions
-    //            {
-    //                Path = "/",
-    //                IsEssential = true,
-    //                Secure = true,
-    //                Expires = DateTimeOffset.Now.AddMinutes(10)
-    //            });
-    //        Console.WriteLine(favFeedsCookie);
-    //    }
-
-    //    public async Task UpdateFeed(int itemID)
-    //    {
-    //        Console.WriteLine("Inside UpdateFeed");
-
-    //        if (outlines != null)
-    //        {
-    //            List<FeedItem> tempItems = outlines;
-    //            FeedItem temp = tempItems.Find(item => item.ID == itemID);
-    //            if (temp != null)
-    //            {
-    //                temp.IsFavorite = !temp.IsFavorite;
-    //                outlines = tempItems;
-    //            }
-    //        }
-
-    //        Console.WriteLine("Outlines items = " + outlines.Count);
-    //    }
 }
 
 public class FeedItem

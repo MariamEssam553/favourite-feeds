@@ -72,7 +72,6 @@ public class IndexModel : PageModel
         return Outlines;
     }
 
-
     public async Task<IActionResult> OnGetAsync([FromQuery] int page = 1)
     {
         Outlines = await GetOutlinesAsync();
@@ -102,7 +101,6 @@ public class IndexModel : PageModel
         else
         {
             feedChosen = Outlines.FirstOrDefault(x => x.ID == btnID);
-            //feedChosen = new FeedItem { XmlLink = link, Text = title, IsFavorite = true };
             feedChosen.IsFavorite = true;
             favoriteFeedsCookie.Add(feedChosen);
         }
